@@ -23,7 +23,7 @@ def apply_security_headers(response):
 
 
 STATE_CHANGING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
-CSRF_EXEMPT_PATHS = {"/api/auth/callback", "/api/auth/login"}
+CSRF_EXEMPT_PATHS = {"/api/auth/callback", "/api/auth/login", "/api/auth/google/callback"}
 
 
 def check_csrf():

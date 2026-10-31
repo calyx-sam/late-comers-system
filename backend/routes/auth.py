@@ -16,6 +16,10 @@ ACCESS_DENIED_MSG = "Access denied. Contact your administrator."
 @auth_bp.route("/login")
 def login():
     callback_url = url_for("auth.callback", _external=True)
+    # Force https scheme in production behind Vercel reverse proxy
+    if callback_url.startswith("http://") and not ("localhost" in callback_url or "127.0.0.1" in callback_url):
+        callback_url = "https://" + callback_url[len("http://"):]
+
     import secrets
     nonce = secrets.token_urlsafe(16)
     session["oauth_nonce"] = nonce
@@ -23,6 +27,7 @@ def login():
 
 
 @auth_bp.route("/callback")
+@auth_bp.route("/google/callback")
 def callback():
     db = next(get_db())
     try:

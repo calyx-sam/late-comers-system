@@ -12,12 +12,16 @@ from backend.routes.departments import departments_bp
 from backend.routes.students import students_bp
 from backend.routes.late_arrivals import late_arrivals_bp
 from backend.routes.dashboard import dashboard_bp
+from werkzeug.middleware.proxy_fix import ProxyFix
 from backend.routes.exports import exports_bp
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    # Support Vercel reverse proxy headers (https proto and forwarded host)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
     # Authlib OAuth
     oauth.init_app(app)
