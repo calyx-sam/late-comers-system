@@ -13,17 +13,26 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 ACCESS_DENIED_MSG = "Access denied. Contact your administrator."
 
 
-@auth_bp.route("/login")
-def login():
+def _get_redirect_uri():
+    """Get OAuth redirect URI from env variable or auto-detect with HTTPS."""
+    if Config.GOOGLE_REDIRECT_URI:
+        return Config.GOOGLE_REDIRECT_URI
     callback_url = url_for("auth.callback", _external=True)
-    # Force https scheme in production behind Vercel reverse proxy
     if callback_url.startswith("http://") and not ("localhost" in callback_url or "127.0.0.1" in callback_url):
         callback_url = "https://" + callback_url[len("http://"):]
+    return callback_url
+
+
+@auth_bp.route("/login")
+def login():
+    redirect_uri = _get_redirect_uri()
+    print(f"[OAuth Login] Initiated with redirect_uri: {redirect_uri}", flush=True)
 
     import secrets
     nonce = secrets.token_urlsafe(16)
     session["oauth_nonce"] = nonce
-    return oauth.google.authorize_redirect(callback_url, nonce=nonce)
+    session["oauth_redirect_uri"] = redirect_uri
+    return oauth.google.authorize_redirect(redirect_uri, nonce=nonce)
 
 
 @auth_bp.route("/callback")
@@ -31,7 +40,9 @@ def login():
 def callback():
     db = next(get_db())
     try:
-        token = oauth.google.authorize_access_token()
+        redirect_uri = session.pop("oauth_redirect_uri", None) or _get_redirect_uri()
+        print(f"[OAuth Callback] Token exchange with redirect_uri: {redirect_uri}", flush=True)
+        token = oauth.google.authorize_access_token(redirect_uri=redirect_uri)
         nonce = session.pop("oauth_nonce", None)
         user_info = oauth.google.parse_id_token(token, nonce=nonce)
 
