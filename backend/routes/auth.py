@@ -77,8 +77,10 @@ def callback():
             user_id=db_user.id,
         )
 
-        frontend_url = Config.FRONTEND_URL or ""
-        response = make_response(redirect(f"{frontend_url}/dashboard"))
+        target_path = "/dashboard"
+        if Config.DEBUG and Config.FRONTEND_URL:
+            target_path = f"{Config.FRONTEND_URL}/dashboard"
+        response = make_response(redirect(target_path))
 
         is_secure = not Config.DEBUG
         response.set_cookie(
@@ -154,5 +156,7 @@ def logout():
 
 
 def _access_denied_redirect():
-    frontend_url = Config.FRONTEND_URL or ""
-    return redirect(f"{frontend_url}/login?error=access_denied")
+    target_path = "/login?error=access_denied"
+    if Config.DEBUG and Config.FRONTEND_URL:
+        target_path = f"{Config.FRONTEND_URL}/login?error=access_denied"
+    return redirect(target_path)
