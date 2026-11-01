@@ -90,8 +90,7 @@ def create_app():
             "status": "ok",
             "service": "latecomers-api",
             "env_check": {
-                "SESSION_SECRET": Config.HAS_SESSION_SECRET,
-                "FLASK_SECRET_KEY": Config.HAS_FLASK_SECRET,
+                "SESSION_SECRET": bool(Config.SECRET_KEY),
                 "GOOGLE_CLIENT_ID": bool(Config.GOOGLE_CLIENT_ID),
                 "GOOGLE_CLIENT_SECRET": bool(Config.GOOGLE_CLIENT_SECRET),
                 "GOOGLE_REDIRECT_URI": bool(Config.GOOGLE_REDIRECT_URI),

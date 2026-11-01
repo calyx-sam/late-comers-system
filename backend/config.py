@@ -19,12 +19,9 @@ def _clean_env(val: str) -> str:
 class Config:
     """Base configuration."""
 
-    # Flask & Session Secret
+    # Flask & Session Secret (fixed value only from SESSION_SECRET environment variable)
     _session_secret = _clean_env(os.environ.get("SESSION_SECRET", ""))
-    _flask_secret = _clean_env(os.environ.get("FLASK_SECRET_KEY", ""))
-    HAS_SESSION_SECRET = bool(_session_secret)
-    HAS_FLASK_SECRET = bool(_flask_secret)
-    SECRET_KEY = _session_secret or _flask_secret
+    SECRET_KEY = _session_secret
     DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
 
     # Make Secure cookie flag configurable via environment variable (COOKIE_SECURE or SESSION_COOKIE_SECURE)
