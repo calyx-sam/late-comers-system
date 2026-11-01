@@ -14,9 +14,12 @@ from extensions import engine
 from config import Config
 
 
+_table_checked = False
+
 def ensure_oauth_states_table():
-    """Ensure oauth_states table exists in database."""
-    if not engine:
+    """Ensure oauth_states table exists in database (lazy check)."""
+    global _table_checked
+    if _table_checked or not engine:
         return
     try:
         with engine.connect() as conn:
@@ -29,6 +32,7 @@ def ensure_oauth_states_table():
                 CREATE INDEX IF NOT EXISTS idx_oauth_states_expires ON oauth_states(expires_at);
             """))
             conn.commit()
+            _table_checked = True
     except Exception as e:
         print(f"[OAuth State DB Warning] Table check failed: {type(e).__name__}", flush=True)
 
@@ -38,8 +42,6 @@ def init_oauth_state_storage(google_app):
     Hook Authlib's state storage methods to persist in both signed Flask session cookie
     and database table `oauth_states`.
     """
-    ensure_oauth_states_table()
-
     orig_set = google_app.framework.set_state_data
     orig_get = google_app.framework.get_state_data
     orig_clear = google_app.framework.clear_state_data
@@ -55,6 +57,7 @@ def init_oauth_state_storage(google_app):
 
         # 2. Store in database table `oauth_states` so any serverless instance can validate it
         if engine and state:
+            ensure_oauth_states_table()
             key = f"_state_{google_app.name}_{state}"
             try:
                 expires_in = getattr(google_app.framework, "expires_in", 600) or 600
