@@ -1,7 +1,6 @@
-"""Auth routes: Google OAuth login, callback, logout, current user."""
-
+import os
 from flask import Blueprint, redirect, url_for, jsonify, request, make_response, session
-from config import Config
+from config import Config, _clean_env
 from extensions import oauth, get_db
 from models import User, Settings
 from decorators import login_required
@@ -61,7 +60,6 @@ def _extract_google_error(e):
 
 def _get_redirect_uri():
     """Read GOOGLE_REDIRECT_URI from environment for both login and token exchange."""
-    from config import _clean_env
     env_uri = _clean_env(os.environ.get("GOOGLE_REDIRECT_URI", "")) or Config.GOOGLE_REDIRECT_URI
     if env_uri:
         return env_uri
