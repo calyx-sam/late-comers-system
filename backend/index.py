@@ -3,7 +3,7 @@
 import sys
 import os
 import traceback
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 if _current_dir not in sys.path:
@@ -36,11 +36,15 @@ def _init_real_app():
     }
     print(f"[Startup Env Check] {status}", flush=True)
 
-    if not Config.SECRET_KEY:
-        raise RuntimeError("SESSION_SECRET environment variable is missing. It must be set.")
+    has_session_secret = bool(Config.SECRET_KEY)
+    if not has_session_secret:
+        print("[Startup Warning] SESSION_SECRET environment variable is missing. It must be set.", flush=True)
 
     flask_app = Flask(__name__)
     flask_app.config.from_object(Config)
+    if not flask_app.secret_key:
+        # Prevent crash on import; enforce strictly on auth routes
+        flask_app.secret_key = "temporary-unset-secret-must-be-configured"
 
     flask_app.wsgi_app = ProxyFix(flask_app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
 
@@ -59,6 +63,8 @@ def _init_real_app():
 
     @flask_app.before_request
     def csrf_check():
+        if request.path.startswith("/api/auth") and not Config.SECRET_KEY:
+            raise RuntimeError("SESSION_SECRET environment variable is missing. It must be set.")
         return check_csrf()
 
     @flask_app.errorhandler(404)
@@ -75,7 +81,19 @@ def _init_real_app():
 
     @flask_app.route("/api/health")
     def health():
-        return jsonify({"status": "ok", "service": "latecomers-api"})
+        from config import _clean_env
+        return jsonify({
+            "status": "ok" if bool(Config.SECRET_KEY) else "session_secret_missing",
+            "service": "latecomers-api",
+            "env_check": {
+                "SESSION_SECRET": bool(Config.SECRET_KEY),
+                "FLASK_SECRET_KEY": bool(_clean_env(os.environ.get("FLASK_SECRET_KEY", ""))),
+                "GOOGLE_CLIENT_ID": bool(Config.GOOGLE_CLIENT_ID),
+                "GOOGLE_CLIENT_SECRET": bool(Config.GOOGLE_CLIENT_SECRET),
+                "GOOGLE_REDIRECT_URI": bool(Config.GOOGLE_REDIRECT_URI),
+                "DATABASE_URL": bool(Config.SQLALCHEMY_DATABASE_URI),
+            }
+        })
 
     @flask_app.route("/api/health/db")
     def health_db():
