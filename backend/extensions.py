@@ -20,7 +20,6 @@ def _build_engine():
         echo=False,
         connect_args={
             "options": "-c statement_timeout=30000",
-            "prepare_threshold": 0,
         },
     )
 
