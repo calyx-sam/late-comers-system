@@ -23,9 +23,21 @@ export default function Login() {
 
   useEffect(() => {
     const err = searchParams.get('error');
-    if (err === 'access_denied') {
-      setError('Access denied. Contact your administrator.');
-    }
+    if (!err) return;
+
+    const errorMessages = {
+      state_mismatch: 'Authentication session expired or state mismatch. Please try signing in again.',
+      token_exchange_failed: 'Failed to exchange authorization code with Google. Please try again.',
+      token_invalid: 'Invalid or malformed Google authentication token.',
+      email_not_verified: 'Your Google email is not verified.',
+      domain_not_allowed: 'Your email domain is not authorized for this portal.',
+      user_not_found: 'Your account is not registered. Please contact the administrator.',
+      user_inactive: 'Your account has been deactivated. Please contact the administrator.',
+      db_error: 'Database connection error during login. Please try again later.',
+      access_denied: 'Access denied. Contact your administrator.',
+    };
+
+    setError(errorMessages[err] || `Sign in failed: ${err}`);
   }, [searchParams]);
 
   return (

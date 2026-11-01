@@ -67,6 +67,20 @@ def create_app():
     def health():
         return jsonify({"status": "ok", "service": "latecomers-api"})
 
+    @app.route("/api/health/db")
+    def health_db():
+        from extensions import engine
+        from sqlalchemy import text
+        if not engine:
+            return jsonify({"status": "failed"}), 500
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return jsonify({"status": "ok"}), 200
+        except Exception as e:
+            print(f"[Health DB] Check failed: {type(e).__name__}", flush=True)
+            return jsonify({"status": "failed"}), 500
+
     # Register blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(settings_bp)

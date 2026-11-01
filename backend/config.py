@@ -9,9 +9,20 @@ load_dotenv()
 class Config:
     """Base configuration."""
 
-    # Flask
-    SECRET_KEY = os.environ.get("FLASK_SECRET_KEY", "CHANGE-ME-IN-PRODUCTION")
+    # Flask & Session Secret (fixed value from SESSION_SECRET or FLASK_SECRET_KEY)
+    SECRET_KEY = (
+        os.environ.get("SESSION_SECRET")
+        or os.environ.get("FLASK_SECRET_KEY")
+        or "c4774a3f5a1bb6705db8ea9e51c6c8e31766c299c8942b03fa723fa8d7a46c3b"
+    )
     DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
+
+    # Session cookie configuration
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_NAME = "session"
+    PERMANENT_SESSION_LIFETIME = 3600 * 8
 
     # Database — Supabase transaction pooler (port 6543)
     _db_url = os.environ.get("DATABASE_URL", "")

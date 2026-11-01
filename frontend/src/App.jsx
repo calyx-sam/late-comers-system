@@ -27,7 +27,8 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        {/* Public route */}
+        {/* Public routes */}
+        <Route path="/" element={<Login />} />
         <Route path="/login" element={<Login />} />
 
         {/* Protected routes — all within dashboard layout */}

@@ -27,7 +27,8 @@ def log_audit(action, entity_type=None, entity_id=None, details=None, user_id=No
         )
         db.add(entry)
         db.commit()
-    except Exception:
+    except Exception as e:
         db.rollback()
+        print(f"[Audit Log Error] Failed to write audit event '{action}': {type(e).__name__}: {str(e)}", flush=True)
     finally:
         db.close()
