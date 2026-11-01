@@ -112,4 +112,27 @@ def create_app():
     return app
 
 
-app = create_app()
+try:
+    app = create_app()
+except Exception as startup_err:
+    import traceback
+    err_msg = str(startup_err)
+    err_type = type(startup_err).__name__
+    tb_str = traceback.format_exc()
+    sys.stderr.write(f"[STARTUP CRITICAL ERROR] {err_type}: {err_msg}\n{tb_str}\n")
+    sys.stderr.flush()
+
+    fallback_app = Flask("startup_error")
+
+    @fallback_app.route("/api/health")
+    @fallback_app.route("/api/health/db")
+    @fallback_app.route("/api/<path:subpath>")
+    def startup_failure(subpath=None):
+        return jsonify({
+            "status": "error",
+            "startup_error": err_msg,
+            "error_type": err_type,
+        }), 500
+
+    app = fallback_app
+
