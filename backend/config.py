@@ -27,9 +27,16 @@ class Config:
     )
     DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
 
+    # Make Secure cookie flag configurable via environment variable (COOKIE_SECURE or SESSION_COOKIE_SECURE)
+    _default_secure = "0" if DEBUG else "1"
+    COOKIE_SECURE = (
+        _clean_env(os.environ.get("COOKIE_SECURE", os.environ.get("SESSION_COOKIE_SECURE", _default_secure))).lower()
+        in ("1", "true", "yes")
+    )
+
     # Session cookie configuration
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = COOKIE_SECURE
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_NAME = "session"
     PERMANENT_SESSION_LIFETIME = 3600 * 8

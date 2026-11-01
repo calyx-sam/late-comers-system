@@ -18,11 +18,13 @@ def _extract_google_error(e):
     error_code = None
     error_desc = None
 
+    # Check OAuthError attributes directly
     if hasattr(e, "error") and e.error:
         error_code = str(e.error)
     if hasattr(e, "description") and e.description:
         error_desc = str(e.description)
 
+    # Check response object (requests / httpx)
     resp = getattr(e, "response", None)
     if resp is not None:
         try:
@@ -31,23 +33,38 @@ def _extract_google_error(e):
                 error_code = error_code or data.get("error")
                 error_desc = error_desc or data.get("error_description")
         except Exception:
-            pass
+            try:
+                text = resp.text
+                if text and len(text) < 500:
+                    error_desc = error_desc or text
+            except Exception:
+                pass
 
+    # Check exception args
     if not error_code and hasattr(e, "args") and e.args:
         first = e.args[0]
         if isinstance(first, dict):
             error_code = first.get("error")
             error_desc = first.get("error_description")
-        elif isinstance(first, str) and not error_desc:
-            error_desc = first
+        elif isinstance(first, str):
+            if "invalid_client" in first:
+                error_code = "invalid_client"
+            elif "invalid_grant" in first:
+                error_code = "invalid_grant"
+            elif "redirect_uri_mismatch" in first:
+                error_code = "redirect_uri_mismatch"
+            elif not error_desc:
+                error_desc = first
 
     return error_code, error_desc
 
 
 def _get_redirect_uri():
-    """Get OAuth redirect URI from GOOGLE_REDIRECT_URI env var (single source of truth)."""
-    if Config.GOOGLE_REDIRECT_URI:
-        return Config.GOOGLE_REDIRECT_URI
+    """Read GOOGLE_REDIRECT_URI from environment for both login and token exchange."""
+    from config import _clean_env
+    env_uri = _clean_env(os.environ.get("GOOGLE_REDIRECT_URI", "")) or Config.GOOGLE_REDIRECT_URI
+    if env_uri:
+        return env_uri
     callback_url = url_for("auth.callback", _external=True)
     if callback_url.startswith("http://") and not ("localhost" in callback_url or "127.0.0.1" in callback_url):
         callback_url = "https://" + callback_url[len("http://"):]
@@ -56,7 +73,7 @@ def _get_redirect_uri():
 
 @auth_bp.route("/login")
 def login():
-    # Use identical GOOGLE_REDIRECT_URI
+    # Read GOOGLE_REDIRECT_URI directly from environment for login request
     redirect_uri = _get_redirect_uri()
     print(f"[OAuth Login] Initiated with redirect_uri: {redirect_uri}", flush=True)
 
@@ -98,12 +115,12 @@ def callback():
     if request.args.get("error"):
         err = request.args.get("error")
         err_desc = request.args.get("error_description", "")
-        print(f"[OAuth Step: Google Error] google_error={err} google_description={err_desc}", flush=True)
+        print(f"[Google OAuth Callback Error] error_code: {err} | error_description: {err_desc}", flush=True)
         if "access_denied" in err:
             return _fail_login("state_mismatch", details={"google_error": err, "google_description": err_desc})
         return _fail_login("token_exchange_failed", details={"google_error": err, "google_description": err_desc})
 
-    # Step 1: Token Exchange (using the same GOOGLE_REDIRECT_URI as login)
+    # Step 1: Token Exchange (reading the same GOOGLE_REDIRECT_URI from environment)
     redirect_uri = _get_redirect_uri()
     print(f"[OAuth Step: Token Exchange] Exchanging token with redirect_uri: {redirect_uri}", flush=True)
     try:
@@ -113,12 +130,9 @@ def callback():
         err_type = type(e).__name__
         g_error, g_desc = _extract_google_error(e)
 
-        # Log Google's exact error code and error_description to runtime logs
-        print(
-            f"[OAuth Token Exchange Error] exception_type={err_type} "
-            f"google_error={g_error} google_description={g_desc}",
-            flush=True,
-        )
+        # Print Google's error code and error_description to terminal/runtime logs
+        # Never print authorization code, tokens, client secret, or database URL
+        print(f"[Google Token Exchange Failed] error_code: {g_error or 'none'} | error_description: {g_desc or 'none'} | exception: {err_type}: {str(e)}", flush=True)
 
         if "state" in err_msg or "mismatch" in err_msg or "mismatchingstate" in err_type.lower():
             return _fail_login("state_mismatch", details={"error_type": err_type, "google_error": g_error})
@@ -232,7 +246,7 @@ def callback():
             "session_token",
             value=raw_token,
             httponly=True,
-            secure=True,
+            secure=Config.COOKIE_SECURE,
             samesite="Lax",
             path="/",
             max_age=Config.SESSION_ABSOLUTE_LIFETIME_HOURS * 3600,

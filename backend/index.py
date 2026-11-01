@@ -33,6 +33,7 @@ def check_required_env():
         "GOOGLE_CLIENT_ID": bool(Config.GOOGLE_CLIENT_ID),
         "GOOGLE_CLIENT_SECRET": bool(Config.GOOGLE_CLIENT_SECRET),
         "GOOGLE_REDIRECT_URI": bool(Config.GOOGLE_REDIRECT_URI),
+        "COOKIE_SECURE": bool(Config.COOKIE_SECURE),
     }
     print(f"[Startup Env Check] {status}", flush=True)
 
