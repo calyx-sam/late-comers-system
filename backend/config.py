@@ -6,13 +6,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _clean_env(val: str) -> str:
+    """Strip leading/trailing whitespace and surrounding single/double quotes."""
+    if not val:
+        return ""
+    val = val.strip()
+    if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+        val = val[1:-1].strip()
+    return val
+
+
 class Config:
     """Base configuration."""
 
     # Flask & Session Secret (fixed value from SESSION_SECRET or FLASK_SECRET_KEY)
     SECRET_KEY = (
-        os.environ.get("SESSION_SECRET")
-        or os.environ.get("FLASK_SECRET_KEY")
+        _clean_env(os.environ.get("SESSION_SECRET", ""))
+        or _clean_env(os.environ.get("FLASK_SECRET_KEY", ""))
         or "c4774a3f5a1bb6705db8ea9e51c6c8e31766c299c8942b03fa723fa8d7a46c3b"
     )
     DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
@@ -25,7 +35,7 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 3600 * 8
 
     # Database — Supabase transaction pooler (port 6543)
-    _db_url = os.environ.get("DATABASE_URL", "")
+    _db_url = _clean_env(os.environ.get("DATABASE_URL", ""))
     if _db_url.startswith("postgres://"):
         _db_url = _db_url.replace("postgres://", "postgresql+psycopg2://", 1)
     elif _db_url.startswith("postgresql://") and "+psycopg2" not in _db_url:
@@ -38,10 +48,10 @@ class Config:
         },
     }
 
-    # Google OAuth2
-    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-    GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "").strip()
+    # Google OAuth2 (cleaned of quotes and whitespace)
+    GOOGLE_CLIENT_ID = _clean_env(os.environ.get("GOOGLE_CLIENT_ID", ""))
+    GOOGLE_CLIENT_SECRET = _clean_env(os.environ.get("GOOGLE_CLIENT_SECRET", ""))
+    GOOGLE_REDIRECT_URI = _clean_env(os.environ.get("GOOGLE_REDIRECT_URI", ""))
 
     # Optional domain restriction
     ALLOWED_EMAIL_DOMAIN = os.environ.get("ALLOWED_EMAIL_DOMAIN", "")

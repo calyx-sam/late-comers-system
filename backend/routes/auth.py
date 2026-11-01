@@ -13,8 +13,39 @@ auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 ACCESS_DENIED_MSG = "Access denied. Contact your administrator."
 
 
+def _extract_google_error(e):
+    """Extract OAuth error code and description from exception or response, without sensitive tokens."""
+    error_code = None
+    error_desc = None
+
+    if hasattr(e, "error") and e.error:
+        error_code = str(e.error)
+    if hasattr(e, "description") and e.description:
+        error_desc = str(e.description)
+
+    resp = getattr(e, "response", None)
+    if resp is not None:
+        try:
+            data = resp.json()
+            if isinstance(data, dict):
+                error_code = error_code or data.get("error")
+                error_desc = error_desc or data.get("error_description")
+        except Exception:
+            pass
+
+    if not error_code and hasattr(e, "args") and e.args:
+        first = e.args[0]
+        if isinstance(first, dict):
+            error_code = first.get("error")
+            error_desc = first.get("error_description")
+        elif isinstance(first, str) and not error_desc:
+            error_desc = first
+
+    return error_code, error_desc
+
+
 def _get_redirect_uri():
-    """Get OAuth redirect URI from env variable or auto-detect with HTTPS."""
+    """Get OAuth redirect URI from GOOGLE_REDIRECT_URI env var (single source of truth)."""
     if Config.GOOGLE_REDIRECT_URI:
         return Config.GOOGLE_REDIRECT_URI
     callback_url = url_for("auth.callback", _external=True)
@@ -25,13 +56,13 @@ def _get_redirect_uri():
 
 @auth_bp.route("/login")
 def login():
+    # Use identical GOOGLE_REDIRECT_URI
     redirect_uri = _get_redirect_uri()
     print(f"[OAuth Login] Initiated with redirect_uri: {redirect_uri}", flush=True)
 
     import secrets
     nonce = secrets.token_urlsafe(16)
     session["oauth_nonce"] = nonce
-    session["oauth_redirect_uri"] = redirect_uri
     session.permanent = True
     return oauth.google.authorize_redirect(redirect_uri, nonce=nonce)
 
@@ -66,23 +97,39 @@ def callback():
     # Check for direct error in Google redirect parameters
     if request.args.get("error"):
         err = request.args.get("error")
-        print(f"[OAuth Step: Google Error] Received error param from Google: {err}", flush=True)
+        err_desc = request.args.get("error_description", "")
+        print(f"[OAuth Step: Google Error] google_error={err} google_description={err_desc}", flush=True)
         if "access_denied" in err:
-            return _fail_login("state_mismatch", details={"google_error": err})
-        return _fail_login("token_exchange_failed", details={"google_error": err})
+            return _fail_login("state_mismatch", details={"google_error": err, "google_description": err_desc})
+        return _fail_login("token_exchange_failed", details={"google_error": err, "google_description": err_desc})
 
-    # Step 1: Token Exchange
-    redirect_uri = session.pop("oauth_redirect_uri", None) or _get_redirect_uri()
-    print(f"[OAuth Step: Token Exchange] Token exchange starting with redirect_uri: {redirect_uri}", flush=True)
+    # Step 1: Token Exchange (using the same GOOGLE_REDIRECT_URI as login)
+    redirect_uri = _get_redirect_uri()
+    print(f"[OAuth Step: Token Exchange] Exchanging token with redirect_uri: {redirect_uri}", flush=True)
     try:
         token = oauth.google.authorize_access_token(redirect_uri=redirect_uri)
     except Exception as e:
         err_msg = str(e).lower()
         err_type = type(e).__name__
-        print(f"[OAuth Step Error: Token Exchange] {err_type}: {str(e)}", flush=True)
+        g_error, g_desc = _extract_google_error(e)
+
+        # Log Google's exact error code and error_description to runtime logs
+        print(
+            f"[OAuth Token Exchange Error] exception_type={err_type} "
+            f"google_error={g_error} google_description={g_desc}",
+            flush=True,
+        )
+
         if "state" in err_msg or "mismatch" in err_msg or "mismatchingstate" in err_type.lower():
-            return _fail_login("state_mismatch", details={"error_type": err_type})
-        return _fail_login("token_exchange_failed", details={"error_type": err_type})
+            return _fail_login("state_mismatch", details={"error_type": err_type, "google_error": g_error})
+
+        fail_details = {"error_type": err_type}
+        if g_error:
+            fail_details["google_error"] = str(g_error)
+        if g_desc:
+            fail_details["google_description"] = str(g_desc)[:200]
+
+        return _fail_login("token_exchange_failed", details=fail_details)
 
     if not token:
         print("[OAuth Step Error: Token Exchange] Empty token response received", flush=True)

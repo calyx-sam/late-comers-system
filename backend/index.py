@@ -25,7 +25,21 @@ from routes.dashboard import dashboard_bp
 from routes.exports import exports_bp
 
 
+def check_required_env():
+    """Check required environment variables and log presence only (true/false). Never logs values."""
+    status = {
+        "DATABASE_URL": bool(Config.SQLALCHEMY_DATABASE_URI),
+        "SESSION_SECRET": bool(Config.SECRET_KEY and Config.SECRET_KEY != "CHANGE-ME-IN-PRODUCTION"),
+        "GOOGLE_CLIENT_ID": bool(Config.GOOGLE_CLIENT_ID),
+        "GOOGLE_CLIENT_SECRET": bool(Config.GOOGLE_CLIENT_SECRET),
+        "GOOGLE_REDIRECT_URI": bool(Config.GOOGLE_REDIRECT_URI),
+    }
+    print(f"[Startup Env Check] {status}", flush=True)
+
+
 def create_app():
+    check_required_env()
+
     app = Flask(__name__)
     app.config.from_object(Config)
 
