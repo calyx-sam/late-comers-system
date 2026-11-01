@@ -1,5 +1,14 @@
 """Flask application factory — entry point for Vercel serverless function."""
 
+import sys
+import os
+
+# Ensure the parent directory is in sys.path so 'from backend...' imports work when root is 'backend'
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+
 from flask import Flask, jsonify
 from backend.config import Config
 from backend.middleware import apply_security_headers, check_csrf
