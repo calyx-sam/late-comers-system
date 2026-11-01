@@ -53,24 +53,29 @@ def callback():
         email = user_info.get("email", "").lower().strip()
         email_verified = user_info.get("email_verified", False)
         google_name = user_info.get("name", "")
+        print(f"[OAuth Callback] Successfully authenticated with Google as '{email}'", flush=True)
 
         if not email_verified:
+            print(f"[OAuth Access Denied] Email '{email}' is not verified by Google", flush=True)
             log_audit("login_failure", details={"email": email, "reason": "email_not_verified"})
             return _access_denied_redirect()
 
         if Config.ALLOWED_EMAIL_DOMAIN:
             domain = email.split("@")[-1] if "@" in email else ""
             if domain != Config.ALLOWED_EMAIL_DOMAIN:
+                print(f"[OAuth Access Denied] Domain '{domain}' != '{Config.ALLOWED_EMAIL_DOMAIN}'", flush=True)
                 log_audit("login_failure", details={"email": email, "reason": "domain_not_allowed"})
                 return _access_denied_redirect()
 
         db_user = db.query(User).filter(User.email == email).first()
 
         if not db_user:
+            print(f"[OAuth Access Denied] Email '{email}' not found in 'users' database table", flush=True)
             log_audit("login_failure", details={"email": email, "reason": "user_not_found"})
             return _access_denied_redirect()
 
         if not db_user.is_active:
+            print(f"[OAuth Access Denied] User '{email}' is inactive", flush=True)
             log_audit("login_failure", details={"email": email, "reason": "user_disabled"}, user_id=db_user.id)
             return _access_denied_redirect()
 
@@ -79,6 +84,7 @@ def callback():
             db.commit()
 
         raw_token = create_session(db, db_user.id)
+        print(f"[OAuth Success] Session created for user '{email}' (role: {db_user.role})", flush=True)
 
         log_audit(
             "login_success",
@@ -107,6 +113,7 @@ def callback():
 
     except Exception as e:
         db.rollback()
+        print(f"[OAuth Callback Exception] {str(e)}", flush=True)
         log_audit("login_failure", details={"reason": "exception", "error": str(e)[:200]})
         return _access_denied_redirect()
     finally:
