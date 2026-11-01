@@ -56,6 +56,8 @@ def create_app():
         server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
         client_kwargs={"scope": "openid email profile"},
     )
+    from services.oauth_state import init_oauth_state_storage
+    init_oauth_state_storage(oauth.google)
 
     # Middleware
     app.after_request(apply_security_headers)

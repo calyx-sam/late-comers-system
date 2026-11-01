@@ -159,6 +159,15 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 
 CREATE INDEX IF NOT EXISTS idx_rate_limits_key ON rate_limits(key, window_start);
 
+-- 10. OAuth states (for serverless OAuth state & nonce validation)
+CREATE TABLE IF NOT EXISTS oauth_states (
+    key             TEXT PRIMARY KEY,
+    value           TEXT NOT NULL,
+    expires_at      TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_states_expires ON oauth_states(expires_at);
+
 -- =============================================================================
 -- Row Level Security — enabled on all tables, no policies.
 -- Only the Flask backend connects via the service_role/direct connection.

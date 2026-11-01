@@ -75,18 +75,19 @@ def login():
     redirect_uri = _get_redirect_uri()
     print(f"[OAuth Login] Initiated with redirect_uri: {redirect_uri}", flush=True)
 
-    import secrets
-    nonce = secrets.token_urlsafe(16)
-    session["oauth_nonce"] = nonce
     session.permanent = True
-    return oauth.google.authorize_redirect(redirect_uri, nonce=nonce)
+    return oauth.google.authorize_redirect(redirect_uri)
 
 
 def _fail_login(code: str, details: dict = None, user_id: int = None):
     """Log specific reason code, record to audit_log, and redirect to /?error=<code>."""
     print(f"[OAuth Failure] reason_code={code}", flush=True)
+    safe_details = {}
     if details:
-        safe_details = {k: v for k, v in details.items() if k not in ("token", "secret", "code", "database_url")}
+        safe_details = {
+            k: str(v)[:300] for k, v in details.items()
+            if k not in ("token", "secret", "code", "database_url", "access_token", "id_token", "client_secret")
+        }
         print(f"[OAuth Failure Details] {safe_details}", flush=True)
 
     try:
@@ -94,7 +95,7 @@ def _fail_login(code: str, details: dict = None, user_id: int = None):
             "login_failure",
             entity_type="user" if user_id else None,
             entity_id=user_id,
-            details={"reason": code, **(details or {})},
+            details={"reason": code, **safe_details},
             user_id=user_id,
         )
     except Exception as e:
@@ -118,11 +119,14 @@ def callback():
             return _fail_login("state_mismatch", details={"google_error": err, "google_description": err_desc})
         return _fail_login("token_exchange_failed", details={"google_error": err, "google_description": err_desc})
 
-    # Step 1: Token Exchange (reading the same GOOGLE_REDIRECT_URI from environment)
+    # Step 1: Token Exchange (using GOOGLE_REDIRECT_URI configured for both login and callback)
     redirect_uri = _get_redirect_uri()
-    print(f"[OAuth Step: Token Exchange] Exchanging token with redirect_uri: {redirect_uri}", flush=True)
+    print(f"[OAuth Step: Token Exchange] Initiating token exchange for redirect_uri: {redirect_uri}", flush=True)
     try:
-        token = oauth.google.authorize_access_token(redirect_uri=redirect_uri)
+        # Note: Do NOT pass redirect_uri=redirect_uri as a kwarg here, because Authlib's
+        # _format_state_params already populates params['redirect_uri'] from the saved state_data,
+        # which would cause TypeError: got multiple values for keyword argument 'redirect_uri'.
+        token = oauth.google.authorize_access_token()
     except Exception as e:
         err_msg = str(e).lower()
         err_type = type(e).__name__
@@ -130,7 +134,11 @@ def callback():
 
         # Print Google's error code and error_description to terminal/runtime logs
         # Never print authorization code, tokens, client secret, or database URL
-        print(f"[Google Token Exchange Failed] error_code: {g_error or 'none'} | error_description: {g_desc or 'none'} | exception: {err_type}: {str(e)}", flush=True)
+        print(
+            f"[Google Token Exchange Failed] error_code: {g_error or 'none'} | "
+            f"error_description: {g_desc or 'none'} | exception_type: {err_type}",
+            flush=True
+        )
 
         if "state" in err_msg or "mismatch" in err_msg or "mismatchingstate" in err_type.lower():
             return _fail_login("state_mismatch", details={"error_type": err_type, "google_error": g_error})
@@ -148,13 +156,14 @@ def callback():
         return _fail_login("token_exchange_failed", details={"info": "empty_token"})
 
     # Step 2: Token Parsing & Validation
-    try:
-        nonce = session.pop("oauth_nonce", None)
-        user_info = oauth.google.parse_id_token(token, nonce=nonce)
-    except Exception as e:
-        err_type = type(e).__name__
-        print(f"[OAuth Step Error: ID Token Parse] {err_type}: {str(e)}", flush=True)
-        return _fail_login("token_invalid", details={"error_type": err_type})
+    user_info = token.get("userinfo")
+    if not user_info:
+        try:
+            user_info = oauth.google.parse_id_token(token)
+        except Exception as e:
+            err_type = type(e).__name__
+            print(f"[OAuth Step Error: ID Token Parse] {err_type}", flush=True)
+            return _fail_login("token_invalid", details={"error_type": err_type})
 
     if not user_info:
         print("[OAuth Step Error: ID Token Parse] Empty user_info received", flush=True)

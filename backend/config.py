@@ -19,12 +19,11 @@ def _clean_env(val: str) -> str:
 class Config:
     """Base configuration."""
 
-    # Flask & Session Secret (fixed value from SESSION_SECRET or FLASK_SECRET_KEY)
-    SECRET_KEY = (
-        _clean_env(os.environ.get("SESSION_SECRET", ""))
-        or _clean_env(os.environ.get("FLASK_SECRET_KEY", ""))
-        or "c4774a3f5a1bb6705db8ea9e51c6c8e31766c299c8942b03fa723fa8d7a46c3b"
-    )
+    # Flask & Session Secret (fixed value only from SESSION_SECRET environment variable)
+    _session_secret = _clean_env(os.environ.get("SESSION_SECRET", ""))
+    if not _session_secret:
+        raise RuntimeError("SESSION_SECRET environment variable is missing. It must be set.")
+    SECRET_KEY = _session_secret
     DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
 
     # Make Secure cookie flag configurable via environment variable (COOKIE_SECURE or SESSION_COOKIE_SECURE)
@@ -35,10 +34,11 @@ class Config:
     )
 
     # Session cookie configuration
+    SESSION_COOKIE_NAME = "session"
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SECURE = COOKIE_SECURE
     SESSION_COOKIE_SAMESITE = "Lax"
-    SESSION_COOKIE_NAME = "session"
+    SESSION_COOKIE_PATH = "/"
     PERMANENT_SESSION_LIFETIME = 3600 * 8
 
     # Database — Supabase transaction pooler (port 6543)
