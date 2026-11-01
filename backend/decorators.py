@@ -2,8 +2,8 @@
 
 from functools import wraps
 from flask import request, jsonify, g
-from backend.extensions import get_db
-from backend.services.auth_service import validate_session
+from extensions import get_db
+from services.auth_service import validate_session
 
 
 def login_required(f):

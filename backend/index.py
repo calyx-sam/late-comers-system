@@ -3,26 +3,26 @@
 import sys
 import os
 
-# Ensure the parent directory is in sys.path so 'from backend...' imports work when root is 'backend'
+# Ensure backend directory is in sys.path for top-level imports
 _current_dir = os.path.dirname(os.path.abspath(__file__))
-_parent_dir = os.path.dirname(_current_dir)
-if _parent_dir not in sys.path:
-    sys.path.insert(0, _parent_dir)
+if _current_dir not in sys.path:
+    sys.path.insert(0, _current_dir)
 
 from flask import Flask, jsonify
-from backend.config import Config
-from backend.middleware import apply_security_headers, check_csrf
-from backend.extensions import oauth
-from backend.routes.auth import auth_bp
-from backend.routes.settings import settings_bp
-from backend.routes.users import users_bp
-from backend.routes.audit import audit_bp
-from backend.routes.departments import departments_bp
-from backend.routes.students import students_bp
-from backend.routes.late_arrivals import late_arrivals_bp
-from backend.routes.dashboard import dashboard_bp
 from werkzeug.middleware.proxy_fix import ProxyFix
-from backend.routes.exports import exports_bp
+
+from config import Config
+from middleware import apply_security_headers, check_csrf
+from extensions import oauth
+from routes.auth import auth_bp
+from routes.settings import settings_bp
+from routes.users import users_bp
+from routes.audit import audit_bp
+from routes.departments import departments_bp
+from routes.students import students_bp
+from routes.late_arrivals import late_arrivals_bp
+from routes.dashboard import dashboard_bp
+from routes.exports import exports_bp
 
 
 def create_app():

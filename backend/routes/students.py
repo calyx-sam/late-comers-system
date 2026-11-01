@@ -11,10 +11,10 @@ POST   /api/students/import       — CSV import (admin)
 import csv
 import io
 from flask import Blueprint, jsonify, request, g
-from backend.decorators import login_required, role_required
-from backend.extensions import get_db
-from backend.models import Student, Department
-from backend.services.audit_service import log_audit
+from decorators import login_required, role_required
+from extensions import get_db
+from models import Student, Department
+from services.audit_service import log_audit
 
 students_bp = Blueprint("students", __name__, url_prefix="/api/students")
 

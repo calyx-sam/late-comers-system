@@ -1,11 +1,11 @@
 """User management routes — admin only."""
 
 from flask import Blueprint, jsonify, request, g
-from backend.decorators import login_required, role_required
-from backend.extensions import get_db
-from backend.models import User
-from backend.services.audit_service import log_audit
-from backend.services.auth_service import revoke_all_user_sessions
+from decorators import login_required, role_required
+from extensions import get_db
+from models import User
+from services.audit_service import log_audit
+from services.auth_service import revoke_all_user_sessions
 
 users_bp = Blueprint("users", __name__, url_prefix="/api/users")
 

@@ -4,8 +4,8 @@ import hashlib
 import secrets
 from datetime import datetime, timezone, timedelta
 
-from backend.config import Config
-from backend.models import Session, User
+from config import Config
+from models import Session, User
 
 
 def generate_session_token():

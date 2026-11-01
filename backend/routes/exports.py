@@ -11,11 +11,11 @@ import csv
 from datetime import date
 from flask import Blueprint, request, send_file, g
 from sqlalchemy import func, desc
-from backend.decorators import login_required
-from backend.extensions import get_db
-from backend.models import LateArrival, Student, Department, Settings
-from backend.services.audit_service import log_audit
-from backend.utils.security import neutralise_formula, mask_phone
+from decorators import login_required
+from extensions import get_db
+from models import LateArrival, Student, Department, Settings
+from services.audit_service import log_audit
+from utils.security import neutralise_formula, mask_phone
 
 exports_bp = Blueprint("exports", __name__, url_prefix="/api/exports")
 

@@ -1,12 +1,12 @@
 """Auth routes: Google OAuth login, callback, logout, current user."""
 
 from flask import Blueprint, redirect, url_for, jsonify, request, make_response, session
-from backend.config import Config
-from backend.extensions import oauth, get_db
-from backend.models import User, Settings
-from backend.decorators import login_required
-from backend.services.auth_service import create_session, revoke_session
-from backend.services.audit_service import log_audit
+from config import Config
+from extensions import oauth, get_db
+from models import User, Settings
+from decorators import login_required
+from services.auth_service import create_session, revoke_session
+from services.audit_service import log_audit
 
 auth_bp = Blueprint("auth", __name__, url_prefix="/api/auth")
 
@@ -122,7 +122,7 @@ def callback():
 
 @auth_bp.route("/me")
 def me():
-    from backend.services.auth_service import validate_session as validate_sess
+    from services.auth_service import validate_session as validate_sess
 
     raw_token = request.cookies.get("session_token")
     if not raw_token:

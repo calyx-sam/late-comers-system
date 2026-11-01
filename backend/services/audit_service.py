@@ -1,8 +1,8 @@
 """Audit log helper — writes events to audit_log table."""
 
 from flask import request, g
-from backend.extensions import get_db
-from backend.models import AuditLog
+from extensions import get_db
+from models import AuditLog
 
 
 def log_audit(action, entity_type=None, entity_id=None, details=None, user_id=None):

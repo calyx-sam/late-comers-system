@@ -1,9 +1,9 @@
 """Audit log routes — admin only."""
 
 from flask import Blueprint, jsonify, request
-from backend.decorators import login_required, role_required
-from backend.extensions import get_db
-from backend.models import AuditLog
+from decorators import login_required, role_required
+from extensions import get_db
+from models import AuditLog
 from sqlalchemy import desc
 
 audit_bp = Blueprint("audit", __name__, url_prefix="/api/audit-log")

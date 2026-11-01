@@ -3,7 +3,7 @@
 from sqlalchemy import create_engine, NullPool
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from authlib.integrations.flask_client import OAuth
-from backend.config import Config
+from config import Config
 
 
 class Base(DeclarativeBase):

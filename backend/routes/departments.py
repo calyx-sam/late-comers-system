@@ -6,10 +6,10 @@ PUT    /api/departments/:id       — update (admin)
 """
 
 from flask import Blueprint, jsonify, request, g
-from backend.decorators import login_required, role_required
-from backend.extensions import get_db
-from backend.models import Department
-from backend.services.audit_service import log_audit
+from decorators import login_required, role_required
+from extensions import get_db
+from models import Department
+from services.audit_service import log_audit
 
 departments_bp = Blueprint("departments", __name__, url_prefix="/api/departments")
 

@@ -10,10 +10,10 @@ GET    /api/late-arrivals/check-dup    — check duplicate for student+date
 from datetime import date, time, datetime
 from flask import Blueprint, jsonify, request, g
 from sqlalchemy import desc, func
-from backend.decorators import login_required, role_required
-from backend.extensions import get_db
-from backend.models import LateArrival, Student, Settings
-from backend.services.audit_service import log_audit
+from decorators import login_required, role_required
+from extensions import get_db
+from models import LateArrival, Student, Settings
+from services.audit_service import log_audit
 
 late_arrivals_bp = Blueprint("late_arrivals", __name__, url_prefix="/api/late-arrivals")
 

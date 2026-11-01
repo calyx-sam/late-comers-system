@@ -8,7 +8,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from backend.extensions import Base
+from extensions import Base
 
 
 class Department(Base):

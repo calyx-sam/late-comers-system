@@ -5,8 +5,8 @@ Uses the rate_limits table for tracking request counts per key per window.
 
 from datetime import datetime, timezone, timedelta
 from flask import request, jsonify
-from backend.extensions import get_db
-from backend.models import RateLimit
+from extensions import get_db
+from models import RateLimit
 
 
 def check_rate_limit(key_prefix, max_requests=10, window_seconds=60):

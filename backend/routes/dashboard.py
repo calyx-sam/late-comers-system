@@ -11,13 +11,13 @@ POST /api/parent-communications — log communication
 from datetime import date, timedelta
 from flask import Blueprint, jsonify, request, g
 from sqlalchemy import func, desc
-from backend.decorators import login_required, role_required
-from backend.extensions import get_db
-from backend.models import (
+from decorators import login_required, role_required
+from extensions import get_db
+from models import (
     LateArrival, Student, Department, Settings,
     ParentCommunication, User,
 )
-from backend.services.audit_service import log_audit
+from services.audit_service import log_audit
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api")
 
