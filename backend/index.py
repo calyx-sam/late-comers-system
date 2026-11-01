@@ -29,13 +29,16 @@ def check_required_env():
     """Check required environment variables and log presence only (true/false). Never logs values."""
     status = {
         "DATABASE_URL": bool(Config.SQLALCHEMY_DATABASE_URI),
-        "SESSION_SECRET": bool(Config.SECRET_KEY and Config.SECRET_KEY != "CHANGE-ME-IN-PRODUCTION"),
+        "SESSION_SECRET": bool(Config.SECRET_KEY),
         "GOOGLE_CLIENT_ID": bool(Config.GOOGLE_CLIENT_ID),
         "GOOGLE_CLIENT_SECRET": bool(Config.GOOGLE_CLIENT_SECRET),
         "GOOGLE_REDIRECT_URI": bool(Config.GOOGLE_REDIRECT_URI),
         "COOKIE_SECURE": bool(Config.COOKIE_SECURE),
     }
     print(f"[Startup Env Check] {status}", flush=True)
+
+    if not Config.SECRET_KEY:
+        raise RuntimeError("SESSION_SECRET environment variable is missing. It must be set.")
 
 
 def create_app():
