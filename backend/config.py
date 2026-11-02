@@ -11,9 +11,9 @@ def _clean_env(val: str) -> str:
     if not val:
         return ""
     val = val.strip()
-    if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+    while (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
         val = val[1:-1].strip()
-    return val
+    return val.strip("\"'").strip()
 
 
 class Config:
@@ -56,7 +56,9 @@ class Config:
     # Google OAuth2 (cleaned of quotes and whitespace)
     GOOGLE_CLIENT_ID = _clean_env(os.environ.get("GOOGLE_CLIENT_ID", ""))
     GOOGLE_CLIENT_SECRET = _clean_env(os.environ.get("GOOGLE_CLIENT_SECRET", ""))
-    GOOGLE_REDIRECT_URI = _clean_env(os.environ.get("GOOGLE_REDIRECT_URI", ""))
+    GOOGLE_REDIRECT_URI = _clean_env(
+        os.environ.get("GOOGLE_REDIRECT_URI", "https://late-comers-system.vercel.app/api/auth/google/callback")
+    )
 
     # Optional domain restriction
     ALLOWED_EMAIL_DOMAIN = os.environ.get("ALLOWED_EMAIL_DOMAIN", "")

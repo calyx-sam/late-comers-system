@@ -1,6 +1,5 @@
-import os
-from flask import Blueprint, redirect, url_for, jsonify, request, make_response, session
-from config import Config, _clean_env
+from flask import Blueprint, redirect, jsonify, request, make_response, session
+from config import Config
 from extensions import oauth, get_db
 from models import User, Settings
 from decorators import login_required
@@ -59,14 +58,8 @@ def _extract_google_error(e):
 
 
 def _get_redirect_uri():
-    """Read GOOGLE_REDIRECT_URI from environment for both login and token exchange."""
-    env_uri = _clean_env(os.environ.get("GOOGLE_REDIRECT_URI", "")) or Config.GOOGLE_REDIRECT_URI
-    if env_uri:
-        return env_uri
-    callback_url = url_for("auth.callback", _external=True)
-    if callback_url.startswith("http://") and not ("localhost" in callback_url or "127.0.0.1" in callback_url):
-        callback_url = "https://" + callback_url[len("http://"):]
-    return callback_url
+    """Read ONE environment variable GOOGLE_REDIRECT_URI for both authorization request and token exchange."""
+    return Config.GOOGLE_REDIRECT_URI
 
 
 @auth_bp.route("/login")
@@ -79,9 +72,9 @@ def login():
     return oauth.google.authorize_redirect(redirect_uri)
 
 
-def _fail_login(code: str, details: dict = None, user_id: int = None):
-    """Log specific reason code, record to audit_log, and redirect to /?error=<code>."""
-    print(f"[OAuth Failure] reason_code={code}", flush=True)
+def _fail_login(code: str, details: dict = None, user_id: int = None, reason: str = None):
+    """Log specific reason code, record to audit_log, and redirect to /?error=<code>&reason=<reason>."""
+    print(f"[OAuth Failure] reason_code={code} | reason={reason or 'none'}", flush=True)
     safe_details = {}
     if details:
         safe_details = {
@@ -95,15 +88,19 @@ def _fail_login(code: str, details: dict = None, user_id: int = None):
             "login_failure",
             entity_type="user" if user_id else None,
             entity_id=user_id,
-            details={"reason": code, **safe_details},
+            details={"reason": code, "error_code": reason, **safe_details},
             user_id=user_id,
         )
     except Exception as e:
         print(f"[OAuth Audit Failure] Could not write audit log for '{code}': {type(e).__name__}", flush=True)
 
-    target_path = f"/?error={code}"
+    query_str = f"error={code}"
+    if reason:
+        query_str += f"&reason={reason}"
+
+    target_path = f"/?{query_str}"
     if Config.DEBUG and Config.FRONTEND_URL:
-        target_path = f"{Config.FRONTEND_URL}/?error={code}"
+        target_path = f"{Config.FRONTEND_URL}/?{query_str}"
     return redirect(target_path)
 
 
@@ -116,8 +113,8 @@ def callback():
         err_desc = request.args.get("error_description", "")
         print(f"[Google OAuth Callback Error] error_code: {err} | error_description: {err_desc}", flush=True)
         if "access_denied" in err:
-            return _fail_login("state_mismatch", details={"google_error": err, "google_description": err_desc})
-        return _fail_login("token_exchange_failed", details={"google_error": err, "google_description": err_desc})
+            return _fail_login("state_mismatch", details={"google_error": err, "google_description": err_desc}, reason=err)
+        return _fail_login("token_exchange_failed", details={"google_error": err, "google_description": err_desc}, reason=err)
 
     # Step 1: Token Exchange (using GOOGLE_REDIRECT_URI configured for both login and callback)
     redirect_uri = _get_redirect_uri()
@@ -132,8 +129,8 @@ def callback():
         err_type = type(e).__name__
         g_error, g_desc = _extract_google_error(e)
 
-        # Print Google's error code and error_description to terminal/runtime logs
-        # Never print authorization code, tokens, client secret, or database URL
+        # Log Google's error and error_description to runtime logs
+        # Never log authorization code, tokens, client secret, or database URL
         print(
             f"[Google Token Exchange Failed] error_code: {g_error or 'none'} | "
             f"error_description: {g_desc or 'none'} | exception_type: {err_type}",
@@ -141,7 +138,7 @@ def callback():
         )
 
         if "state" in err_msg or "mismatch" in err_msg or "mismatchingstate" in err_type.lower():
-            return _fail_login("state_mismatch", details={"error_type": err_type, "google_error": g_error})
+            return _fail_login("state_mismatch", details={"error_type": err_type, "google_error": g_error}, reason="state_mismatch")
 
         fail_details = {"error_type": err_type}
         if g_error:
@@ -149,11 +146,12 @@ def callback():
         if g_desc:
             fail_details["google_description"] = str(g_desc)[:200]
 
-        return _fail_login("token_exchange_failed", details=fail_details)
+        short_code = g_error or err_type
+        return _fail_login("token_exchange_failed", details=fail_details, reason=short_code)
 
     if not token:
         print("[OAuth Step Error: Token Exchange] Empty token response received", flush=True)
-        return _fail_login("token_exchange_failed", details={"info": "empty_token"})
+        return _fail_login("token_exchange_failed", details={"info": "empty_token"}, reason="empty_token")
 
     # Step 2: Token Parsing & Validation
     user_info = token.get("userinfo")

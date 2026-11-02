@@ -25,6 +25,8 @@ export default function Login() {
     const err = searchParams.get('error');
     if (!err) return;
 
+    const reason = searchParams.get('reason');
+
     const errorMessages = {
       state_mismatch: 'Authentication session expired or state mismatch. Please try signing in again.',
       token_exchange_failed: 'Failed to exchange authorization code with Google. Please try again.',
@@ -37,7 +39,11 @@ export default function Login() {
       access_denied: 'Access denied. Contact your administrator.',
     };
 
-    setError(errorMessages[err] || `Sign in failed: ${err}`);
+    let msg = errorMessages[err] || `Sign in failed: ${err}`;
+    if (reason) {
+      msg += ` (Reason: ${reason})`;
+    }
+    setError(msg);
   }, [searchParams]);
 
   return (
